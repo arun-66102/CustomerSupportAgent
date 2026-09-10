@@ -1,0 +1,431 @@
+"""
+Golden Evaluation Set for Apple Support RAG Agent.
+50 manually crafted examples with varied intents, edge cases, and expected decisions.
+Stratified across all intent classes including ambiguous and high-risk cases.
+"""
+
+import json
+from pathlib import Path
+
+GOLDEN_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "golden"
+GOLDEN_FILE = GOLDEN_DIR / "golden_set.json"
+
+# Labelling policy:
+# - account_security: unauthorized access, hacking, suspicious activity → always ESCALATE
+# - billing_payment: charges, refunds, subscriptions → always ESCALATE
+# - account_access: locked out, forgot password → ESCALATE (medium risk)
+# - hardware_issue: physical damage, defective hardware → ESCALATE if severe
+# - ios_update_issue, battery_drain, app_crash, wifi_connectivity, device_performance, general_question → AUTO-HANDLE
+
+GOLDEN_EXAMPLES = [
+    # ── ios_update_issue (AUTO-HANDLE) ─────────────────────────────────────
+    {
+        "id": "golden_001",
+        "message": "My iPhone is super slow after the iOS 17 update. Everything lags.",
+        "intent": "ios_update_issue",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_002",
+        "message": "After updating iOS my apps keep freezing and crashing randomly.",
+        "intent": "ios_update_issue",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_003",
+        "message": "I updated my phone and now the home screen looks completely different and I hate it.",
+        "intent": "ios_update_issue",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_004",
+        "message": "The latest update is horrible. My phone is unusable now.",
+        "intent": "ios_update_issue",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_005",
+        "message": "Can you get my iPhone back on the old iOS? The new version ruined everything.",
+        "intent": "ios_update_issue",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "medium"
+    },
+    # ── battery_drain (AUTO-HANDLE) ─────────────────────────────────────────
+    {
+        "id": "golden_006",
+        "message": "My battery drains 20% in just 30 minutes. It used to last all day.",
+        "intent": "battery_drain",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_007",
+        "message": "Used my phone for 2 minutes and it dropped 10 percent battery.",
+        "intent": "battery_drain",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_008",
+        "message": "Battery life is terrible. It goes from 100 to 0 in four hours.",
+        "intent": "battery_drain",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_009",
+        "message": "My phone charges slowly and drains fast. This started after the update.",
+        "intent": "battery_drain",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_010",
+        "message": "iPhone battery health dropped to 79% after just 8 months.",
+        "intent": "battery_drain",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "medium"
+    },
+    # ── app_crash (AUTO-HANDLE) ─────────────────────────────────────────────
+    {
+        "id": "golden_011",
+        "message": "WhatsApp keeps crashing on my iPhone 14. Tried reinstalling, still crashes.",
+        "intent": "app_crash",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_012",
+        "message": "My apps stop working without warning every few minutes.",
+        "intent": "app_crash",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_013",
+        "message": "Apple Music crashes whenever I try to play a song.",
+        "intent": "app_crash",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_014",
+        "message": "Safari crashes when I open more than 3 tabs.",
+        "intent": "app_crash",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_015",
+        "message": "All my third party apps are broken since the update.",
+        "intent": "app_crash",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "medium"
+    },
+    # ── wifi_connectivity (AUTO-HANDLE) ────────────────────────────────────
+    {
+        "id": "golden_016",
+        "message": "My iPhone keeps disconnecting from WiFi every hour.",
+        "intent": "wifi_connectivity",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_017",
+        "message": "Can't connect to WiFi at all. It says incorrect password but it's correct.",
+        "intent": "wifi_connectivity",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_018",
+        "message": "WiFi speeds on my iPhone are way slower than on other devices.",
+        "intent": "wifi_connectivity",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "medium"
+    },
+    # ── device_performance (AUTO-HANDLE) ───────────────────────────────────
+    {
+        "id": "golden_019",
+        "message": "My iPhone freezes every five minutes and I have to force restart it.",
+        "intent": "device_performance",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_020",
+        "message": "Everything takes ages to load on my phone. It's ridiculously slow.",
+        "intent": "device_performance",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_021",
+        "message": "My iPhone 12 is lagging so much it's basically unusable.",
+        "intent": "device_performance",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    # ── account_access (ESCALATE — medium risk) ─────────────────────────────
+    {
+        "id": "golden_022",
+        "message": "I forgot my Apple ID password and I'm completely locked out.",
+        "intent": "account_access",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_023",
+        "message": "I can't sign in to my iCloud account. It keeps saying my password is wrong.",
+        "intent": "account_access",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_024",
+        "message": "My Apple ID is disabled. I need to reset it urgently.",
+        "intent": "account_access",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_025",
+        "message": "Two-factor authentication is not sending me the verification code.",
+        "intent": "account_access",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    # ── account_security (ESCALATE — high risk) ─────────────────────────────
+    {
+        "id": "golden_026",
+        "message": "Someone hacked my Apple ID and changed the password. I can't get in.",
+        "intent": "account_security",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_027",
+        "message": "There's suspicious activity on my Apple account. Someone is making purchases without my permission.",
+        "intent": "account_security",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_028",
+        "message": "My iCloud account shows a new device I don't recognize signed in.",
+        "intent": "account_security",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_029",
+        "message": "I think someone stole my Apple ID. My photos are being accessed from another location.",
+        "intent": "account_security",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_030",
+        "message": "Got an email that someone in another country logged into my Apple ID.",
+        "intent": "account_security",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    # ── billing_payment (ESCALATE — high risk) ──────────────────────────────
+    {
+        "id": "golden_031",
+        "message": "I was charged twice for the same app. I need a refund.",
+        "intent": "billing_payment",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_032",
+        "message": "There's an unknown charge from Apple on my credit card.",
+        "intent": "billing_payment",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_033",
+        "message": "I cancelled my Apple TV subscription but I'm still being charged.",
+        "intent": "billing_payment",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_034",
+        "message": "My kid bought an app without my permission. I want my money back.",
+        "intent": "billing_payment",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_035",
+        "message": "Apple charged me but the app never downloaded.",
+        "intent": "billing_payment",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    # ── hardware_issue (ESCALATE — medium risk) ─────────────────────────────
+    {
+        "id": "golden_036",
+        "message": "My iPhone screen cracked and the touch isn't working in some areas.",
+        "intent": "hardware_issue",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_037",
+        "message": "The home button on my iPhone is completely stuck and doesn't respond.",
+        "intent": "hardware_issue",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_038",
+        "message": "My iPhone fell in water. Now the screen is showing strange colors.",
+        "intent": "hardware_issue",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_039",
+        "message": "The front camera on my iPhone is blurry. Looks like it's damaged.",
+        "intent": "hardware_issue",
+        "expected_decision": "ESCALATE",
+        "difficulty": "medium"
+    },
+    {
+        "id": "golden_040",
+        "message": "My iPhone speaker stopped working completely. No sound at all.",
+        "intent": "hardware_issue",
+        "expected_decision": "ESCALATE",
+        "difficulty": "easy"
+    },
+    # ── general_question (AUTO-HANDLE) ──────────────────────────────────────
+    {
+        "id": "golden_041",
+        "message": "How do I enable dark mode on my iPhone?",
+        "intent": "general_question",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_042",
+        "message": "What are Apple Support's operating hours?",
+        "intent": "general_question",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    {
+        "id": "golden_043",
+        "message": "Does the iPhone 15 support wireless charging?",
+        "intent": "general_question",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "easy"
+    },
+    # ── AMBIGUOUS / DIFFICULT CASES ─────────────────────────────────────────
+    {
+        "id": "golden_044",
+        "message": "Still waiting.",
+        "intent": "general_question",
+        "expected_decision": "ESCALATE",
+        "difficulty": "hard",
+        "note": "Ambiguous — too short to classify reliably"
+    },
+    {
+        "id": "golden_045",
+        "message": "My payment failed and now I can't access my account.",
+        "intent": "billing_payment",
+        "expected_decision": "ESCALATE",
+        "difficulty": "hard",
+        "note": "Multiple intents: billing + account access"
+    },
+    {
+        "id": "golden_046",
+        "message": "Help",
+        "intent": "general_question",
+        "expected_decision": "ESCALATE",
+        "difficulty": "hard",
+        "note": "Extremely short — insufficient context"
+    },
+    {
+        "id": "golden_047",
+        "message": "It's not working.",
+        "intent": "general_question",
+        "expected_decision": "ESCALATE",
+        "difficulty": "hard",
+        "note": "Vague — no indication of what is not working"
+    },
+    {
+        "id": "golden_048",
+        "message": "My phone gets really hot and the battery drains after the iOS update. Also my apps crash.",
+        "intent": "ios_update_issue",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "hard",
+        "note": "Multiple symptoms but all related to iOS update — primary intent dominates"
+    },
+    {
+        "id": "golden_049",
+        "message": "I bought a new iPhone and it already has battery problems after one week.",
+        "intent": "battery_drain",
+        "expected_decision": "AUTO-HANDLE",
+        "difficulty": "medium",
+        "note": "Could be hardware issue, but framed as battery concern"
+    },
+    {
+        "id": "golden_050",
+        "message": "Someone is using my Apple ID to download apps and I'm being charged for things I didn't buy.",
+        "intent": "account_security",
+        "expected_decision": "ESCALATE",
+        "difficulty": "hard",
+        "note": "Combined security + billing — both high risk"
+    }
+]
+
+
+def load_golden_set() -> list[dict]:
+    """Load the golden evaluation set."""
+    GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
+
+    if not GOLDEN_FILE.exists():
+        _save_golden_set()
+
+    with open(GOLDEN_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_golden_set():
+    """Save the golden set to disk."""
+    GOLDEN_DIR.mkdir(parents=True, exist_ok=True)
+    with open(GOLDEN_FILE, "w", encoding="utf-8") as f:
+        json.dump(GOLDEN_EXAMPLES, f, indent=2, ensure_ascii=False)
+    print(f"[GoldenSet] Saved {len(GOLDEN_EXAMPLES)} examples to {GOLDEN_FILE}")
+
+
+def get_golden_stats() -> dict:
+    """Return statistics about the golden set distribution."""
+    from collections import Counter
+    intents = Counter(e["intent"] for e in GOLDEN_EXAMPLES)
+    decisions = Counter(e["expected_decision"] for e in GOLDEN_EXAMPLES)
+    difficulties = Counter(e.get("difficulty", "medium") for e in GOLDEN_EXAMPLES)
+    return {
+        "total": len(GOLDEN_EXAMPLES),
+        "by_intent": dict(intents),
+        "by_decision": dict(decisions),
+        "by_difficulty": dict(difficulties)
+    }
+
+
+if __name__ == "__main__":
+    _save_golden_set()
+    stats = get_golden_stats()
+    print(f"Golden Set: {stats['total']} examples")
+    print(f"By intent: {stats['by_intent']}")
+    print(f"By decision: {stats['by_decision']}")
+    print(f"By difficulty: {stats['by_difficulty']}")

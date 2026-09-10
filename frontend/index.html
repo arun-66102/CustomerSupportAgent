@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apple Support AI Agent | Hiver RAG System</title>
+  <meta name="description" content="Brand-specific AI support agent for Apple Support, powered by RAG with llama-3.3-70b-versatile on Groq. Features intent classification, historical retrieval, and risk-aware escalation." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Background particles -->
+  <div class="bg-particles" id="particles"></div>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name">Apple Support AI</span>
+          <span class="brand-sub">Hiver RAG Agent · llama-3.3-70b-versatile</span>
+        </div>
+      </div>
+      <div class="header-status">
+        <div class="status-indicator" id="statusDot"></div>
+        <span class="status-text" id="statusText">Connecting...</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Navigation -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="chat" id="tabChat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+      Chat
+    </button>
+    <button class="tab-btn" data-tab="pipeline" id="tabPipeline">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Pipeline Trace
+    </button>
+    <button class="tab-btn" data-tab="evaluation" id="tabEval">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Evaluation
+    </button>
+    <button class="tab-btn" data-tab="taxonomy" id="tabTaxonomy">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h8m-8 6h16"/></svg>
+      Intent Taxonomy
+    </button>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main-content">
+
+    <!-- ── Chat Tab ─────────────────────────────────────────────────────── -->
+    <section class="tab-panel active" id="panelChat">
+      <div class="chat-layout">
+        <div class="chat-window" id="chatWindow">
+          <!-- Welcome message -->
+          <div class="chat-welcome">
+            <div class="welcome-icon">🍎</div>
+            <h2>Apple Support AI Agent</h2>
+            <p>Powered by RAG with <strong>llama-3.3-70b-versatile</strong> on Groq. Ask any Apple-related support question.</p>
+            <div class="quick-prompts">
+              <button class="quick-prompt" data-msg="My iPhone battery drains really fast after the iOS 17 update">🔋 Battery drain after update</button>
+              <button class="quick-prompt" data-msg="Someone hacked my Apple ID and I can't log in anymore">🔒 Account security issue</button>
+              <button class="quick-prompt" data-msg="WhatsApp keeps crashing on my iPhone 15">📱 App keeps crashing</button>
+              <button class="quick-prompt" data-msg="I was charged twice for an app I didn't buy">💳 Billing dispute</button>
+              <button class="quick-prompt" data-msg="My iPhone screen cracked and the touch doesn't work">🖥️ Screen hardware issue</button>
+              <button class="quick-prompt" data-msg="How do I enable dark mode on iPhone?">🌙 Feature question</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="input-wrapper">
+            <textarea
+              id="messageInput"
+              placeholder="Describe your Apple Support issue..."
+              rows="1"
+              maxlength="500"
+            ></textarea>
+            <button class="send-btn" id="sendBtn" title="Send message">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+            </button>
+          </div>
+          <div class="input-hint">Press Enter to send · Shift+Enter for new line · <span id="charCount">0</span>/500</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Pipeline Trace Tab ────────────────────────────────────────────── -->
+    <section class="tab-panel" id="panelPipeline">
+      <div class="pipeline-container">
+        <div class="section-header">
+          <h2>Pipeline Trace</h2>
+          <p>Step-by-step breakdown of the last query through the AI pipeline</p>
+        </div>
+        <div id="pipelineEmpty" class="empty-state">
+          <div class="empty-icon">⚡</div>
+          <p>Send a message in the Chat tab to see the pipeline trace here</p>
+        </div>
+        <div id="pipelineTrace" class="pipeline-trace hidden"></div>
+      </div>
+    </section>
+
+    <!-- ── Evaluation Tab ────────────────────────────────────────────────── -->
+    <section class="tab-panel" id="panelEval">
+      <div class="eval-container">
+        <div class="section-header">
+          <h2>Evaluation Harness</h2>
+          <p>Run the evaluation pipeline against the 50-example golden set</p>
+        </div>
+        <div class="eval-controls">
+          <div class="eval-mode-select">
+            <label>Evaluation Mode:</label>
+            <div class="mode-buttons">
+              <button class="mode-btn active" id="modeQuick" data-mode="quick">
+                ⚡ Quick (Intent + Decision)
+              </button>
+              <button class="mode-btn" id="modeFull" data-mode="full">
+                🔬 Full (+ LLM Judge)
+              </button>
+            </div>
+          </div>
+          <div class="eval-size-select">
+            <label>Sample Size: <span id="sampleSizeVal">20</span></label>
+            <input type="range" id="sampleSize" min="5" max="50" value="20" step="5" />
+          </div>
+          <button class="run-eval-btn" id="runEvalBtn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Run Evaluation
+          </button>
+        </div>
+
+        <div id="evalLoading" class="eval-loading hidden">
+          <div class="loading-spinner"></div>
+          <p>Running evaluation pipeline on golden set...</p>
+          <small>This processes each example through the full AI pipeline</small>
+        </div>
+
+        <div id="evalResults" class="eval-results hidden">
+          <!-- Results injected by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Taxonomy Tab ──────────────────────────────────────────────────── -->
+    <section class="tab-panel" id="panelTaxonomy">
+      <div class="taxonomy-container">
+        <div class="section-header">
+          <h2>Intent Taxonomy</h2>
+          <p>Apple Support intent definitions, risk levels, and examples used for classification</p>
+        </div>
+        <div id="taxonomyGrid" class="taxonomy-grid">
+          <div class="loading-spinner"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

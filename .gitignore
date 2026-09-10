@@ -1,0 +1,147 @@
+# ==============================
+
+# Python
+
+# ==============================
+
+**pycache**/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+ENV/
+
+# Distribution / packaging
+
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ==============================
+
+# Environment & Secrets
+
+# ==============================
+
+.env
+.env.*
+!.env.example
+
+# API keys / credentials
+
+*.pem
+*.key
+credentials.json
+secrets.json
+
+# ==============================
+
+# Jupyter
+
+# ==============================
+
+.ipynb_checkpoints/
+
+# ==============================
+
+# Testing / Coverage
+
+# ==============================
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# ==============================
+
+# Logs
+
+# ==============================
+
+*.log
+logs/
+
+# ==============================
+
+# IDE / Editors
+
+# ==============================
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==============================
+
+# OS
+
+# ==============================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==============================
+
+# Project Data
+
+# ==============================
+
+# Ignore raw/full datasets
+
+data/raw/
+*.csv
+*.zip
+*.gz
+*.tar
+*.parquet
+
+# Keep small, intentional evaluation artifacts
+
+!evaluation/golden_set.csv
+
+# ==============================
+
+# Model / Vector Database Files
+
+# ==============================
+
+models/
+checkpoints/
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+vector_db/
+chroma_db/
+.faiss/
+
+# ==============================
+
+# Generated Results / Cache
+
+# ==============================
+
+.cache/
+tmp/
+temp/
+
+# ==============================
+
+# Local Configuration
+
+# ==============================
+
+*.local
+config.local.*
