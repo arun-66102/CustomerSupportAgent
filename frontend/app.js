@@ -11,7 +11,6 @@ let sampleSize = 20;
 
 // ── DOM Ready ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-  initParticles();
   initTabs();
   initChat();
   initEvaluation();
@@ -19,22 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadTaxonomy();
   setInterval(checkHealth, 30000);
 });
-
-// ── Background Particles ───────────────────────────────────────────────
-function initParticles() {
-  const container = document.getElementById('particles');
-  const orbs = [
-    { size: 300, top: '10%', left: '5%', delay: '0s' },
-    { size: 200, top: '60%', right: '8%', delay: '3s' },
-    { size: 150, top: '30%', right: '25%', delay: '6s' },
-  ];
-  orbs.forEach(({ size, top, left, right, delay }) => {
-    const orb = document.createElement('div');
-    orb.className = 'orb';
-    orb.style.cssText = `width:${size}px;height:${size}px;top:${top};${left ? `left:${left}` : `right:${right}`};background:radial-gradient(circle,rgba(59,130,246,0.3) 0%,transparent 70%);animation-delay:${delay};animation-duration:${8 + Math.random()*4}s`;
-    container.appendChild(orb);
-  });
-}
 
 // ── Health Check ───────────────────────────────────────────────────────
 async function checkHealth() {
@@ -44,28 +27,61 @@ async function checkHealth() {
     const res = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(5000) });
     if (res.ok) {
       const data = await res.json();
-      dot.className = 'status-indicator online';
-      text.textContent = `Online · ${data.conversations_loaded.toLocaleString()} conversations`;
+      dot.className = 'status-dot online';
+      text.textContent = `Online · ${data.conversations_loaded.toLocaleString()} records`;
     } else {
       throw new Error();
     }
   } catch {
-    dot.className = 'status-indicator error';
-    text.textContent = 'Backend offline — start the server';
+    dot.className = 'status-dot error';
+    text.textContent = 'Backend offline — run start.bat';
   }
 }
 
-// ── Tabs ──────────────────────────────────────────────────────────────
+// ── Unified Tab Navigation (Top Nav + Floating Dock + Footer) ─────────
 function initTabs() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById(`panel${capitalize(tab)}`).classList.add('active');
+  const allTabTriggers = document.querySelectorAll('[data-tab]');
+  allTabTriggers.forEach(el => {
+    el.addEventListener('click', (e) => {
+      const tab = el.dataset.tab;
+      if (tab) {
+        if (el.tagName === 'A') e.preventDefault();
+        switchTab(tab);
+      }
     });
   });
+
+  const floatingAction = document.getElementById('floating-action-btn');
+  if (floatingAction) {
+    floatingAction.addEventListener('click', () => {
+      switchTab('chat');
+      const input = document.getElementById('messageInput');
+      if (input) {
+        input.focus();
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }
+}
+
+function switchTab(tab) {
+  // Update top buttons
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+
+  // Update floating dock buttons
+  document.querySelectorAll('.dock-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+
+  // Update tab panels
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const targetPanel = document.getElementById(`panel${capitalize(tab)}`);
+  if (targetPanel) {
+    targetPanel.classList.add('active');
+    targetPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
 }
 
 function capitalize(str) {
@@ -73,44 +89,52 @@ function capitalize(str) {
   return map[str] || str.charAt(0).toUpperCase() + str.slice(1);
 }
 
-// ── Chat ──────────────────────────────────────────────────────────────
+// ── Chat Controller ────────────────────────────────────────────────────
 function initChat() {
   const input = document.getElementById('messageInput');
   const sendBtn = document.getElementById('sendBtn');
   const charCount = document.getElementById('charCount');
 
-  input.addEventListener('input', () => {
-    charCount.textContent = input.value.length;
-    autoResize(input);
-  });
-
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  });
-
-  sendBtn.addEventListener('click', sendMessage);
-
-  document.querySelectorAll('.quick-prompt').forEach(btn => {
-    btn.addEventListener('click', () => {
-      input.value = btn.dataset.msg;
+  if (input) {
+    input.addEventListener('input', () => {
       charCount.textContent = input.value.length;
       autoResize(input);
-      sendMessage();
+    });
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  }
+
+  if (sendBtn) {
+    sendBtn.addEventListener('click', sendMessage);
+  }
+
+  // Quick prompt buttons
+  document.querySelectorAll('.quick-prompt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const msg = btn.dataset.msg;
+      if (msg && input) {
+        input.value = msg;
+        charCount.textContent = input.value.length;
+        autoResize(input);
+        sendMessage();
+      }
     });
   });
 }
 
 function autoResize(el) {
   el.style.height = 'auto';
-  el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  el.style.height = Math.min(el.scrollHeight, 130) + 'px';
 }
 
 async function sendMessage() {
   const input = document.getElementById('messageInput');
-  const msg = input.value.trim();
+  const msg = input ? input.value.trim() : '';
   if (!msg || isLoading) return;
 
   isLoading = true;
@@ -119,11 +143,11 @@ async function sendMessage() {
   document.getElementById('charCount').textContent = '0';
   document.getElementById('sendBtn').disabled = true;
 
-  // Remove welcome screen
+  // Remove welcome screen if visible
   const welcome = document.querySelector('.chat-welcome');
   if (welcome) welcome.remove();
 
-  // Add user message
+  // Append user message
   appendMessage('user', msg);
 
   // Show typing indicator
@@ -137,8 +161,8 @@ async function sendMessage() {
     });
 
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || `HTTP ${res.status}`);
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server responded with HTTP ${res.status}`);
     }
 
     const data = await res.json();
@@ -154,7 +178,7 @@ async function sendMessage() {
   } finally {
     isLoading = false;
     document.getElementById('sendBtn').disabled = false;
-    document.getElementById('messageInput').focus();
+    if (input) input.focus();
   }
 }
 
@@ -163,7 +187,10 @@ function appendMessage(role, text) {
   const wrapper = document.createElement('div');
   wrapper.className = `msg-wrapper msg-${role}`;
   wrapper.innerHTML = `
-    <div class="msg-label">${role === 'user' ? 'You' : 'Apple Support AI'}</div>
+    <div class="msg-label">
+      <iconify-icon icon="${role === 'user' ? 'lucide:user' : 'lucide:apple'}"></iconify-icon>
+      <span>${role === 'user' ? 'Customer' : 'Apple Support AI'}</span>
+    </div>
     <div class="msg-bubble">${escapeHtml(text)}</div>
   `;
   chatWindow.appendChild(wrapper);
@@ -186,29 +213,36 @@ function appendAgentMessage(data) {
   const topResults = (retrieval.results || []).slice(0, 2);
   const evidenceHtml = topResults.length > 0 ? `
     <div class="evidence-snippets">
-      <div class="evidence-snippets-title">📚 Historical Evidence Used</div>
+      <div class="evidence-snippets-title">
+        <iconify-icon icon="lucide:book-marked"></iconify-icon>
+        Historical Evidence Citations
+      </div>
       ${topResults.map(r => `
         <div class="evidence-item">
-          <span class="evidence-sim">${(r.similarity * 100).toFixed(0)}% similar</span> — ${escapeHtml(r.customer_message.slice(0, 80))}...
+          <span class="evidence-sim">${(r.similarity * 100).toFixed(0)}% Match</span> — ${escapeHtml(r.customer_message.slice(0, 85))}...
         </div>
       `).join('')}
     </div>
   ` : '';
 
   wrapper.innerHTML = `
-    <div class="msg-label">Apple Support AI</div>
+    <div class="msg-label">
+      <iconify-icon icon="lucide:apple"></iconify-icon>
+      <span>Apple Support AI · Diagnosis</span>
+    </div>
     <div class="msg-bubble">
       ${escapeHtml(reply)}
       <div class="decision-badge ${isEscalate ? 'escalate' : 'auto'}">
-        ${isEscalate ? '🚨 ESCALATE TO HUMAN' : '✅ AUTO-HANDLED'}
+        <iconify-icon icon="${isEscalate ? 'lucide:alert-triangle' : 'lucide:check-circle'}"></iconify-icon>
+        <span>${isEscalate ? 'ESCALATE TO SENIOR ADVISOR' : 'AUTO-RESOLVED & VALIDATED'}</span>
       </div>
       ${evidenceHtml}
     </div>
     <div class="msg-meta">
-      <span>🎯 ${formatIntentLabel(intent.intent)} · ${pct(intent.confidence)}</span>
-      <span>⚡ ${data.total_duration_ms || '?'}ms</span>
-      <span>📊 ${formatRisk(intent.risk)}</span>
-      <span>🔍 ${retrieval.evidence_quality || 'N/A'} evidence</span>
+      <span><iconify-icon icon="lucide:target"></iconify-icon> ${formatIntentLabel(intent.intent)} (${pct(intent.confidence)})</span>
+      <span><iconify-icon icon="lucide:zap"></iconify-icon> ${data.total_duration_ms || '?'}ms</span>
+      <span><iconify-icon icon="lucide:shield"></iconify-icon> Risk: ${intent.risk || 'LOW'}</span>
+      <span><iconify-icon icon="lucide:file-search"></iconify-icon> Evidence: ${retrieval.evidence_quality || 'N/A'}</span>
     </div>
   `;
   chatWindow.appendChild(wrapper);
@@ -220,9 +254,12 @@ function appendErrorMessage(msg) {
   const wrapper = document.createElement('div');
   wrapper.className = 'msg-wrapper msg-agent';
   wrapper.innerHTML = `
-    <div class="msg-label">System</div>
-    <div class="msg-bubble" style="border-color:rgba(239,68,68,0.3);color:#ef4444;">
-      ⚠️ Error: ${escapeHtml(msg)}
+    <div class="msg-label">
+      <iconify-icon icon="lucide:alert-circle"></iconify-icon>
+      <span>Diagnostic Engine Error</span>
+    </div>
+    <div class="msg-bubble" style="border-color:rgba(239,68,68,0.4); color:#f87171;">
+      <strong>Inference Failure:</strong> ${escapeHtml(msg)}
     </div>
   `;
   chatWindow.appendChild(wrapper);
@@ -236,7 +273,10 @@ function showTyping() {
   el.className = 'msg-wrapper msg-agent';
   el.id = id;
   el.innerHTML = `
-    <div class="msg-label">Apple Support AI</div>
+    <div class="msg-label">
+      <iconify-icon icon="lucide:apple"></iconify-icon>
+      <span>Apple Support AI</span>
+    </div>
     <div class="typing-indicator">
       <div class="typing-dot"></div>
       <div class="typing-dot"></div>
@@ -255,40 +295,42 @@ function removeTyping(id) {
 
 function scrollToBottom() {
   const cw = document.getElementById('chatWindow');
-  cw.scrollTop = cw.scrollHeight;
+  if (cw) cw.scrollTop = cw.scrollHeight;
 }
 
 // ── Pipeline Trace ────────────────────────────────────────────────────
 function updatePipelineTrace(data) {
   const empty = document.getElementById('pipelineEmpty');
   const trace = document.getElementById('pipelineTrace');
+  if (!empty || !trace) return;
+
   empty.classList.add('hidden');
   trace.classList.remove('hidden');
   trace.innerHTML = '';
 
   const steps = [
     {
-      num: '1', title: 'Intent Classification', icon: '🎯',
+      num: '01', title: 'Intent & Risk Classification', icon: 'lucide:target',
       duration: getDuration(data, 'intent_classification'),
       content: buildIntentKV(data.intent)
     },
     {
-      num: '2', title: 'RAG Historical Retrieval', icon: '🔍',
+      num: '02', title: 'RAG Historical Retrieval', icon: 'lucide:search',
       duration: getDuration(data, 'rag_retrieval'),
       content: buildRetrievalContent(data.retrieval)
     },
     {
-      num: '3', title: 'Evidence Validation', icon: '🔬',
+      num: '03', title: 'Evidence Quality Validation', icon: 'lucide:check-circle-2',
       duration: getDuration(data, 'evidence_validation'),
       content: buildEvidenceKV(data.evidence_validation)
     },
     {
-      num: '4', title: 'LLM Response Generation', icon: '💬',
+      num: '04', title: 'LLM Response Generation (Groq)', icon: 'lucide:cpu',
       duration: getDuration(data, 'response_generation'),
       content: buildResponseContent(data.generated_response)
     },
     {
-      num: '5', title: 'Decision Engine', icon: '⚖️',
+      num: '05', title: 'Decision & Escalation Engine', icon: 'lucide:shield-alert',
       duration: getDuration(data, 'decision_engine'),
       content: buildDecisionContent(data.decision)
     }
@@ -299,10 +341,14 @@ function updatePipelineTrace(data) {
     div.className = 'pipeline-step';
     div.innerHTML = `
       <div class="step-header">
-        <div class="step-num">${step.num}</div>
-        <div class="step-title">${step.icon} ${step.title}</div>
+        <div class="step-left">
+          <span class="step-num">${step.num}</span>
+          <span class="step-title">
+            <iconify-icon icon="${step.icon}"></iconify-icon>
+            ${step.title}
+          </span>
+        </div>
         <div class="step-duration">${step.duration}</div>
-        <div class="step-status"></div>
       </div>
       <div class="step-body">${step.content}</div>
     `;
@@ -317,39 +363,39 @@ function getDuration(data, stepName) {
 }
 
 function buildIntentKV(intent) {
-  if (!intent) return '<p class="kv-key">No data</p>';
+  if (!intent) return '<p class="kv-key">No telemetry captured</p>';
   const risk = (intent.risk || '').toUpperCase();
   return `
     <div class="step-kv">
-      <div class="kv-item"><div class="kv-key">Intent</div><div class="kv-val intent-label">${intent.intent || '—'}</div></div>
-      <div class="kv-item"><div class="kv-key">Confidence</div><div class="kv-val">${pct(intent.confidence)}</div></div>
-      <div class="kv-item"><div class="kv-key">Risk Level</div><div class="kv-val ${risk.toLowerCase()}">${risk}</div></div>
-      <div class="kv-item"><div class="kv-key">Method</div><div class="kv-val">${intent.method || '—'}</div></div>
+      <div class="kv-item"><div class="kv-key">Predicted Intent</div><div class="kv-val" style="color:var(--color-accent);">${intent.intent || '—'}</div></div>
+      <div class="kv-item"><div class="kv-key">Classifier Confidence</div><div class="kv-val">${pct(intent.confidence)}</div></div>
+      <div class="kv-item"><div class="kv-key">Assessed Risk</div><div class="kv-val ${risk.toLowerCase()}">${risk || 'LOW'}</div></div>
+      <div class="kv-item"><div class="kv-key">Classification Method</div><div class="kv-val">${intent.method || 'LLM Few-Shot'}</div></div>
     </div>
-    ${intent.reasoning ? `<div style="margin-top:12px;font-size:12px;color:var(--text-secondary);padding:10px;background:rgba(255,255,255,0.03);border-radius:8px;">"${escapeHtml(intent.reasoning)}"</div>` : ''}
+    ${intent.reasoning ? `<div style="margin-top:14px; font-size:12px; color:var(--text-secondary); padding:10px 14px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:8px;">"${escapeHtml(intent.reasoning)}"</div>` : ''}
   `;
 }
 
 function buildRetrievalContent(retrieval) {
-  if (!retrieval) return '<p class="kv-key">No data</p>';
+  if (!retrieval) return '<p class="kv-key">No telemetry captured</p>';
   const results = retrieval.results || [];
   return `
     <div class="step-kv">
-      <div class="kv-item"><div class="kv-key">Quality</div><div class="kv-val ${retrieval.evidence_quality}">${retrieval.evidence_quality || '—'}</div></div>
-      <div class="kv-item"><div class="kv-key">Confidence</div><div class="kv-val">${retrieval.retrieval_confidence?.toFixed(3) || '—'}</div></div>
-      <div class="kv-item"><div class="kv-key">Top Similarity</div><div class="kv-val">${retrieval.top_similarity?.toFixed(3) || '—'}</div></div>
-      <div class="kv-item"><div class="kv-key">Results</div><div class="kv-val">${results.length}</div></div>
+      <div class="kv-item"><div class="kv-key">Evidence Quality</div><div class="kv-val" style="color:#34d399;">${retrieval.evidence_quality || '—'}</div></div>
+      <div class="kv-item"><div class="kv-key">Retrieval Confidence</div><div class="kv-val">${retrieval.retrieval_confidence?.toFixed(3) || '—'}</div></div>
+      <div class="kv-item"><div class="kv-key">Top Cosine Match</div><div class="kv-val">${retrieval.top_similarity?.toFixed(3) || '—'}</div></div>
+      <div class="kv-item"><div class="kv-key">Candidate Pool</div><div class="kv-val">${results.length} historical tickets</div></div>
     </div>
-    <div class="evidence-list" style="margin-top:12px;">
+    <div class="evidence-list" style="margin-top:14px;">
       ${results.slice(0, 3).map((r, i) => `
         <div class="evidence-card">
           <div class="evidence-card-header">
-            <span class="ev-rank">Rank ${i+1}</span>
-            <span class="ev-sim">${(r.similarity * 100).toFixed(0)}% similar</span>
-            <span class="ev-rank" style="color:var(--text-muted);">ID: ${r.conversation_id}</span>
+            <span>Rank 0${i+1}</span>
+            <span class="ev-sim">${(r.similarity * 100).toFixed(0)}% Match</span>
+            <span style="color:var(--text-faint);">Ticket #${r.conversation_id}</span>
           </div>
-          <div class="ev-q"><span class="ev-label">CUSTOMER</span>${escapeHtml(r.customer_message?.slice(0, 120) || '')}${r.customer_message?.length > 120 ? '...' : ''}</div>
-          <div class="ev-a" style="margin-top:6px;"><span class="ev-label">SUPPORT</span>${escapeHtml(r.brand_response?.slice(0, 120) || '')}${r.brand_response?.length > 120 ? '...' : ''}</div>
+          <div class="ev-q"><span class="ev-label">USER</span>${escapeHtml(r.customer_message?.slice(0, 140) || '')}${r.customer_message?.length > 140 ? '...' : ''}</div>
+          <div class="ev-a" style="margin-top:6px;"><span class="ev-label" style="color:var(--color-accent);">RESOL</span>${escapeHtml(r.brand_response?.slice(0, 140) || '')}${r.brand_response?.length > 140 ? '...' : ''}</div>
         </div>
       `).join('')}
     </div>
@@ -357,66 +403,77 @@ function buildRetrievalContent(retrieval) {
 }
 
 function buildEvidenceKV(ev) {
-  if (!ev) return '<p class="kv-key">No data</p>';
+  if (!ev) return '<p class="kv-key">No telemetry captured</p>';
   return `
     <div class="step-kv">
-      <div class="kv-item"><div class="kv-key">Sufficient</div><div class="kv-val ${ev.sufficient ? 'low' : 'high'}">${ev.sufficient ? 'YES ✓' : 'NO ✗'}</div></div>
+      <div class="kv-item"><div class="kv-key">Grounding Sufficient</div><div class="kv-val ${ev.sufficient ? 'low' : 'high'}">${ev.sufficient ? 'YES (PASSED)' : 'NO (INSUFFICIENT)'}</div></div>
       <div class="kv-item"><div class="kv-key">Evidence Confidence</div><div class="kv-val">${ev.evidence_confidence?.toFixed(3) || '—'}</div></div>
-      <div class="kv-item"><div class="kv-key">Quality</div><div class="kv-val ${ev.quality}">${ev.quality || '—'}</div></div>
+      <div class="kv-item"><div class="kv-key">Grounding Quality</div><div class="kv-val ${ev.quality}">${ev.quality || '—'}</div></div>
     </div>
-    ${ev.validation_notes ? `<div style="margin-top:10px;font-size:12px;color:var(--text-secondary);padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px;">${escapeHtml(ev.validation_notes)}</div>` : ''}
+    ${ev.validation_notes ? `<div style="margin-top:12px; font-size:12px; color:var(--text-secondary); padding:10px 14px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:8px;">${escapeHtml(ev.validation_notes)}</div>` : ''}
   `;
 }
 
 function buildResponseContent(resp) {
-  if (!resp) return '<p class="kv-key">No data</p>';
+  if (!resp) return '<p class="kv-key">No telemetry captured</p>';
   return `
     <div class="step-kv" style="margin-bottom:12px;">
-      <div class="kv-item"><div class="kv-key">Method</div><div class="kv-val">${resp.method || '—'}</div></div>
-      <div class="kv-item"><div class="kv-key">Evidence Used</div><div class="kv-val">${(resp.evidence_used || []).length} sources</div></div>
+      <div class="kv-item"><div class="kv-key">Generator Engine</div><div class="kv-val">llama-3.3-70b-versatile</div></div>
+      <div class="kv-item"><div class="kv-key">Evidence Referenced</div><div class="kv-val">${(resp.evidence_used || []).length} citations</div></div>
     </div>
-    ${resp.reply ? `<div style="font-size:13px;color:var(--text-primary);padding:14px;background:rgba(59,130,246,0.05);border:1px solid rgba(59,130,246,0.12);border-radius:10px;line-height:1.65;">${escapeHtml(resp.reply)}</div>` : ''}
-    ${resp.confidence_note ? `<div style="margin-top:8px;font-size:11px;color:var(--text-muted);">📝 ${escapeHtml(resp.confidence_note)}</div>` : ''}
+    ${resp.reply ? `<div style="font-size:13px; color:var(--text-secondary); padding:14px; background:var(--bg-surface); border:1px solid var(--border-medium); border-radius:10px; line-height:1.65;">${escapeHtml(resp.reply)}</div>` : ''}
+    ${resp.confidence_note ? `<div style="margin-top:8px; font-size:11px; color:var(--text-faint);">Note: ${escapeHtml(resp.confidence_note)}</div>` : ''}
   `;
 }
 
 function buildDecisionContent(dec) {
-  if (!dec) return '<p class="kv-key">No data</p>';
+  if (!dec) return '<p class="kv-key">No telemetry captured</p>';
   const isEsc = dec.decision === 'ESCALATE';
   const cf = dec.confidence_factors || {};
   return `
-    <div class="step-kv" style="margin-bottom:12px;">
-      <div class="kv-item"><div class="kv-key">Decision</div><div class="kv-val ${isEsc ? 'escalate' : 'auto-handle'}" style="font-size:16px;">${isEsc ? '🚨 ESCALATE' : '✅ AUTO-HANDLE'}</div></div>
-      <div class="kv-item"><div class="kv-key">Risk Level</div><div class="kv-val ${(dec.risk_level || '').toLowerCase()}">${dec.risk_level || '—'}</div></div>
-      <div class="kv-item"><div class="kv-key">Intent Confidence</div><div class="kv-val">${pct(cf.intent_confidence)}</div></div>
-      <div class="kv-item"><div class="kv-key">Retrieval Confidence</div><div class="kv-val">${cf.retrieval_confidence?.toFixed(3) || '—'}</div></div>
+    <div class="step-kv" style="margin-bottom:14px;">
+      <div class="kv-item"><div class="kv-key">Final Resolution</div><div class="kv-val" style="font-size:15px; color:${isEsc ? 'var(--color-accent)' : '#34d399'}; display:inline-flex; align-items:center; gap:6px;">${isEsc ? '<iconify-icon icon="lucide:alert-triangle"></iconify-icon> ESCALATE TO SENIOR ADVISOR' : '<iconify-icon icon="lucide:check-circle-2"></iconify-icon> AUTO-HANDLE'}</div></div>
+      <div class="kv-item"><div class="kv-key">Risk Evaluation</div><div class="kv-val ${(dec.risk_level || '').toLowerCase()}">${dec.risk_level || 'LOW'}</div></div>
+      <div class="kv-item"><div class="kv-key">Intent Certainty</div><div class="kv-val">${pct(cf.intent_confidence)}</div></div>
+      <div class="kv-item"><div class="kv-key">Grounding Score</div><div class="kv-val">${cf.retrieval_confidence?.toFixed(3) || '—'}</div></div>
     </div>
-    <div style="font-size:13px;color:var(--text-secondary);padding:12px;background:rgba(255,255,255,0.03);border-radius:8px;">
-      📋 ${escapeHtml(dec.reason || '')}
+    <div style="font-size:13px; color:var(--text-muted); padding:12px 14px; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:8px;">
+      Rationale: ${escapeHtml(dec.reason || 'Decision evaluated against risk thresholds and grounding confidence.')}
     </div>
   `;
 }
 
-// ── Evaluation ────────────────────────────────────────────────────────
+// ── Evaluation Controller ─────────────────────────────────────────────
 function initEvaluation() {
-  document.getElementById('modeQuick').addEventListener('click', () => {
-    evalMode = 'quick';
-    document.getElementById('modeQuick').classList.add('active');
-    document.getElementById('modeFull').classList.remove('active');
-  });
-  document.getElementById('modeFull').addEventListener('click', () => {
-    evalMode = 'full';
-    document.getElementById('modeFull').classList.add('active');
-    document.getElementById('modeQuick').classList.remove('active');
-  });
-
+  const modeQuick = document.getElementById('modeQuick');
+  const modeFull = document.getElementById('modeFull');
   const sampleSlider = document.getElementById('sampleSize');
-  sampleSlider.addEventListener('input', () => {
-    sampleSize = parseInt(sampleSlider.value);
-    document.getElementById('sampleSizeVal').textContent = sampleSize;
-  });
+  const runBtn = document.getElementById('runEvalBtn');
 
-  document.getElementById('runEvalBtn').addEventListener('click', runEvaluation);
+  if (modeQuick && modeFull) {
+    modeQuick.addEventListener('click', () => {
+      evalMode = 'quick';
+      modeQuick.classList.add('active');
+      modeFull.classList.remove('active');
+    });
+    modeFull.addEventListener('click', () => {
+      evalMode = 'full';
+      modeFull.classList.add('active');
+      modeQuick.classList.remove('active');
+    });
+  }
+
+  if (sampleSlider) {
+    sampleSlider.addEventListener('input', () => {
+      sampleSize = parseInt(sampleSlider.value);
+      const valPill = document.getElementById('sampleSizeVal');
+      if (valPill) valPill.textContent = sampleSize;
+    });
+  }
+
+  if (runBtn) {
+    runBtn.addEventListener('click', runEvaluation);
+  }
 }
 
 async function runEvaluation() {
@@ -436,7 +493,7 @@ async function runEvaluation() {
     });
 
     if (!res.ok) {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({}));
       throw new Error(err.detail || `HTTP ${res.status}`);
     }
 
@@ -464,27 +521,27 @@ function renderEvalResults(data) {
   container.innerHTML = `
     <!-- Top metrics row -->
     <div class="metrics-row">
-      ${metricCard('Intent Accuracy', pct(im.accuracy), colorScore(im.accuracy), 'Correct intent predictions')}
-      ${metricCard('Intent Macro F1', pct(im.macro_f1), colorScore(im.macro_f1), 'Balanced F1 across all classes')}
-      ${metricCard('Decision Accuracy', pct(dm.accuracy), colorScore(dm.accuracy), 'AUTO-HANDLE / ESCALATE decisions')}
-      ${metricCard('False Auto-Handle', pct(dm.false_auto_handle_rate), colorScoreInverse(dm.false_auto_handle_rate), 'Dangerous: should-escalate but auto-handled')}
-      ${metricCard('Recall@5', pct(rm.recall_at_k?.['recall@5']), colorScore(rm.recall_at_k?.['recall@5']), 'RAG retrieval recall')}
-      ${metricCard('MRR', (rm.mrr || 0).toFixed(3), 'neutral', 'Mean Reciprocal Rank')}
+      ${metricCard('Intent Accuracy', pct(im.accuracy), colorScore(im.accuracy), 'Accurate category classification')}
+      ${metricCard('Intent Macro F1', pct(im.macro_f1), colorScore(im.macro_f1), 'Balanced cross-class performance')}
+      ${metricCard('Decision Accuracy', pct(dm.accuracy), colorScore(dm.accuracy), 'Auto-handle vs escalate accuracy')}
+      ${metricCard('False Auto-Handle', pct(dm.false_auto_handle_rate), colorScoreInverse(dm.false_auto_handle_rate), 'Critical: Dangerous issues missed')}
+      ${metricCard('Recall@5', pct(rm.recall_at_k?.['recall@5']), colorScore(rm.recall_at_k?.['recall@5']), 'Historical RAG retrieval recall')}
+      ${metricCard('Mean Reciprocal Rank', (rm.mrr || 0).toFixed(3), 'neutral', 'MRR of ground truth ticket')}
     </div>
 
     <!-- Baseline Comparison -->
     ${bc.comparison_table ? `
     <div class="eval-section">
-      <div class="eval-section-title">📊 System vs Baselines — Intent Classification</div>
+      <div class="eval-section-title">Volume 03.1 · System vs Baselines (Intent Classification)</div>
       <div class="table-scroll">
         <table class="results-table">
-          <thead><tr><th>System</th><th>Accuracy</th><th>Macro F1</th></tr></thead>
+          <thead><tr><th>System Architecture</th><th>Accuracy</th><th>Macro F1</th></tr></thead>
           <tbody>
             ${bc.comparison_table.map(row => `
               <tr>
-                <td style="font-weight:600">${row.system}</td>
-                <td><span class="badge ${row.method === 'llm' ? 'badge-blue' : 'badge-orange'}">${row.accuracy}</span></td>
-                <td><span class="badge ${row.method === 'llm' ? 'badge-blue' : 'badge-orange'}">${row.macro_f1}</span></td>
+                <td style="font-weight:700; color:#ffffff;">${row.system}</td>
+                <td><span class="badge ${row.method === 'llm' ? 'badge-green' : 'badge-orange'}">${row.accuracy}</span></td>
+                <td><span class="badge ${row.method === 'llm' ? 'badge-green' : 'badge-orange'}">${row.macro_f1}</span></td>
               </tr>
             `).join('')}
           </tbody>
@@ -495,111 +552,64 @@ function renderEvalResults(data) {
     <!-- Decision Confusion Matrix -->
     ${dm.confusion_matrix ? `
     <div class="eval-section">
-      <div class="eval-section-title">⚖️ Decision Engine — Confusion Matrix</div>
+      <div class="eval-section-title">Volume 03.2 · Decision Engine Confusion Matrix</div>
       <div class="confusion-matrix">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Rows = Actual, Cols = Predicted</div>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">Rows = Actual Ground Truth, Columns = Predicted Routing</div>
         <div class="cm-grid">
           <div class="cm-cell cm-corner"></div>
           <div class="cm-cell cm-corner cm-header">Pred: AUTO</div>
           <div class="cm-cell cm-corner cm-header">Pred: ESCALATE</div>
           <div class="cm-cell cm-corner cm-header">Actual: AUTO</div>
-          <div class="cm-cell cm-tp"><div class="cm-val">${dm.confusion_matrix.tp_correct_auto}</div><div class="cm-label">✅ Correct Auto</div></div>
-          <div class="cm-cell cm-fn"><div class="cm-val">${dm.confusion_matrix.fn_unnecessary_escalation}</div><div class="cm-label">⚠️ Unnecessary Esc.</div></div>
+          <div class="cm-cell cm-tp"><div class="cm-val">${dm.confusion_matrix.tp_correct_auto}</div><div class="cm-label">Correct Auto</div></div>
+          <div class="cm-cell cm-fn"><div class="cm-val">${dm.confusion_matrix.fn_unnecessary_escalation}</div><div class="cm-label">Safe Escalation</div></div>
           <div class="cm-cell cm-corner cm-header">Actual: ESCALATE</div>
-          <div class="cm-cell cm-fp"><div class="cm-val">${dm.confusion_matrix.fp_false_auto_handle}</div><div class="cm-label">🚨 FALSE AUTO</div></div>
-          <div class="cm-cell cm-tn"><div class="cm-val">${dm.confusion_matrix.tn_correct_escalation}</div><div class="cm-label">✅ Correct Esc.</div></div>
+          <div class="cm-cell cm-fp"><div class="cm-val">${dm.confusion_matrix.fp_false_auto_handle}</div><div class="cm-label">False Auto (Risk)</div></div>
+          <div class="cm-cell cm-tn"><div class="cm-val">${dm.confusion_matrix.tn_correct_escalation}</div><div class="cm-label">Correct Escalate</div></div>
         </div>
-        <div style="margin-top:12px;font-size:12px;color:var(--accent-red);">
-          🚨 False Auto-Handle Rate: <strong>${pct(dm.false_auto_handle_rate)}</strong> 
-          (cases where dangerous issues were auto-handled instead of escalated)
+        <div style="margin-top:14px; font-size:12px; color:var(--color-accent); font-weight:600;">
+          False Auto-Handle Rate: <strong>${pct(dm.false_auto_handle_rate)}</strong> (Safety rate against high-risk misses)
         </div>
-      </div>
-    </div>` : ''}
-
-    <!-- Per-intent breakdown -->
-    ${im.per_intent ? `
-    <div class="eval-section">
-      <div class="eval-section-title">🎯 Intent Classification — Per-Class Results</div>
-      <div class="table-scroll">
-        <table class="results-table">
-          <thead><tr><th>Intent</th><th>Precision</th><th>Recall</th><th>F1</th><th>Support</th></tr></thead>
-          <tbody>
-            ${Object.entries(im.per_intent).map(([intent, m]) => `
-              <tr>
-                <td style="font-weight:600;color:var(--accent-blue)">${intent}</td>
-                <td>${pct(m.precision)}</td>
-                <td>${pct(m.recall)}</td>
-                <td><span class="badge ${m.f1 > 0.7 ? 'badge-green' : m.f1 > 0.4 ? 'badge-orange' : 'badge-red'}">${pct(m.f1)}</span></td>
-                <td>${m.support}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
       </div>
     </div>` : ''}
 
     <!-- Retrieval metrics -->
     <div class="eval-section">
-      <div class="eval-section-title">🔍 RAG Retrieval Metrics</div>
-      <div style="padding:16px 20px;">
+      <div class="eval-section-title">Volume 03.3 · RAG Retrieval Quality Distribution</div>
+      <div style="padding:1.5rem 1.75rem;">
         <div class="metrics-row" style="margin-bottom:16px;">
           ${Object.entries(rm.recall_at_k || {}).map(([k, v]) => metricCard(k.toUpperCase(), pct(v), colorScore(v), '')).join('')}
           ${Object.entries(rm.precision_at_k || {}).map(([k, v]) => metricCard(k.replace('precision@', 'P@').toUpperCase(), pct(v), colorScore(v), '')).join('')}
         </div>
-        <div style="font-size:13px;color:var(--text-secondary);">
-          Evidence Quality: 
-          🟢 Strong: ${rm.evidence_quality_distribution?.strong || 0} · 
-          🟡 Moderate: ${rm.evidence_quality_distribution?.moderate || 0} · 
-          🔴 Weak: ${rm.evidence_quality_distribution?.weak || 0}
+        <div style="font-size:13px; color:var(--text-muted);">
+          Grounding Quality Distribution: 
+          <span style="color:#34d399; font-weight:700;">Strong: ${rm.evidence_quality_distribution?.strong || 0}</span> · 
+          <span style="color:#fbbf24; font-weight:700;">Moderate: ${rm.evidence_quality_distribution?.moderate || 0}</span> · 
+          <span style="color:var(--color-accent); font-weight:700;">Weak: ${rm.evidence_quality_distribution?.weak || 0}</span>
         </div>
       </div>
     </div>
 
-    <!-- Response quality if available -->
-    ${resp ? `
-    <div class="eval-section">
-      <div class="eval-section-title">💬 Response Quality — LLM Judge Scores (1-5)</div>
-      <div style="padding:20px;">
-        <div style="margin-bottom:12px;font-size:14px;font-weight:700;color:var(--text-primary)">
-          Overall: ${resp.average_overall}/5.0
-        </div>
-        ${Object.entries(resp.average_scores || {}).map(([dim, score]) => `
-          <div class="score-bar-row">
-            <div class="score-bar-label">${capitalize2(dim)}</div>
-            <div class="score-bar-track"><div class="score-bar-fill" style="width:${(score/5)*100}%"></div></div>
-            <div class="score-bar-val">${score}</div>
-          </div>
-        `).join('')}
-      </div>
-    </div>` : ''}
-
     <!-- Sample predictions table -->
     <div class="eval-section">
-      <div class="eval-section-title">📋 Sample Predictions (first 15)</div>
+      <div class="eval-section-title">Volume 03.4 · Live Benchmark Predictions Sample</div>
       <div class="table-scroll">
         <table class="results-table">
-          <thead><tr><th>Message</th><th>True Intent</th><th>Predicted</th><th>Expected Decision</th><th>Predicted Decision</th><th>✓</th></tr></thead>
+          <thead><tr><th>Customer Inquiry</th><th>Ground Truth</th><th>Predicted</th><th>Expected Route</th><th>Predicted Route</th><th>Status</th></tr></thead>
           <tbody>
-            ${(data.pipeline_outputs || []).slice(0,15).map(row => {
-              const intentOk = row.intent?.intent === (row.true_intent || '');
+            ${(data.pipeline_outputs || []).slice(0, 15).map(row => {
               const decOk = row.decision === row.expected_decision;
               return `<tr>
-                <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(row.message?.slice(0,60))}…</td>
+                <td style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:#ffffff;">${escapeHtml(row.message?.slice(0, 60))}…</td>
                 <td><span class="badge badge-purple">${row.true_intent || row.intent?.intent || '—'}</span></td>
                 <td><span class="badge ${row.intent?.intent === row.true_intent ? 'badge-green' : 'badge-red'}">${row.intent?.intent || '—'}</span></td>
                 <td><span class="badge ${row.expected_decision === 'AUTO-HANDLE' ? 'badge-green' : 'badge-red'}">${row.expected_decision}</span></td>
                 <td><span class="badge ${row.decision === 'AUTO-HANDLE' ? 'badge-green' : 'badge-red'}">${row.decision}</span></td>
-                <td>${decOk ? '✅' : '❌'}</td>
+                <td><span class="badge ${decOk ? 'badge-green' : 'badge-red'}" style="display:inline-flex; align-items:center; gap:4px;"><iconify-icon icon="${decOk ? 'lucide:check-circle-2' : 'lucide:x-circle'}"></iconify-icon> ${decOk ? 'Pass' : 'Miss'}</span></td>
               </tr>`;
             }).join('')}
           </tbody>
         </table>
       </div>
-    </div>
-
-    <div style="text-align:center;padding:16px;font-size:12px;color:var(--text-muted);">
-      Evaluated ${data.sample_size} examples · Mode: ${data.mode} · 
-      Data leakage prevented: each example excluded from its own retrieval
     </div>
   `;
 
@@ -616,30 +626,37 @@ function metricCard(label, value, cls, sub) {
   `;
 }
 
-// ── Taxonomy ──────────────────────────────────────────────────────────
+// ── Taxonomy Controller ───────────────────────────────────────────────
 async function loadTaxonomy() {
+  const grid = document.getElementById('taxonomyGrid');
   try {
     const res = await fetch(`${API_BASE}/api/taxonomy`);
     if (!res.ok) return;
     const data = await res.json();
     renderTaxonomy(data.intents);
   } catch (e) {
-    document.getElementById('taxonomyGrid').innerHTML = '<p style="color:var(--text-muted)">Could not load taxonomy — is the server running?</p>';
+    if (grid) {
+      grid.innerHTML = '<p style="color:var(--text-muted)">Could not connect to backend taxonomy endpoint. Ensure FastAPI server is running.</p>';
+    }
   }
 }
 
 function renderTaxonomy(taxonomy) {
   const grid = document.getElementById('taxonomyGrid');
+  if (!grid) return;
+
   grid.innerHTML = Object.entries(taxonomy).map(([key, info]) => `
-    <div class="taxonomy-card risk-${info.risk}">
-      <div class="tc-header">
-        <span class="tc-key">${key}</span>
-        <span class="tc-risk ${info.risk}">${info.risk}</span>
+    <div class="taxonomy-card">
+      <div>
+        <div class="tc-header">
+          <span class="tc-key">${key}</span>
+          <span class="tc-risk ${info.risk}">${info.risk} RISK</span>
+        </div>
+        <h3 class="tc-label">${info.label}</h3>
+        <p class="tc-desc">${escapeHtml(info.description)}</p>
       </div>
-      <div class="tc-label">${info.label}</div>
-      <div class="tc-desc">${escapeHtml(info.description)}</div>
       <div class="tc-examples">
-        <div class="tc-ex-label">Examples</div>
+        <div class="tc-ex-label">Exemplary Utterances</div>
         ${(info.examples || []).map(ex => `<div class="tc-ex-item">${escapeHtml(ex)}</div>`).join('')}
       </div>
     </div>
@@ -669,16 +686,6 @@ function colorScoreInverse(val) {
 function formatIntentLabel(intent) {
   if (!intent) return '—';
   return intent.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
-
-function formatRisk(risk) {
-  if (!risk) return '—';
-  const icons = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴' };
-  return `${icons[risk] || ''} ${risk}`;
-}
-
-function capitalize2(str) {
-  return str.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function escapeHtml(str) {

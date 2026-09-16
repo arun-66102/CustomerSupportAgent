@@ -47,6 +47,7 @@ GUIDELINES:
 - If you're unsure, offer to guide the customer to direct support channels.
 - Keep responses under 150 words.
 - Always end with an offer to help further.
+- Do NOT use emojis in your response.
 
 You must respond ONLY with a valid JSON object in this exact format:
 {
@@ -154,16 +155,16 @@ Generate a helpful Apple Support response grounded in the historical evidence ab
 def _fallback_response(customer_message: str, intent: str, retrieval_results: list[dict]) -> dict:
     """Template-based fallback when LLM is unavailable."""
     templates = {
-        "ios_update_issue": "Thank you for reaching out! iOS update issues can be frustrating. Please try restarting your device and going to Settings > General > Software Update. If the problem persists, please DM us with your iOS version so we can investigate further. We're here to help! 🍎",
+        "ios_update_issue": "Thank you for reaching out! iOS update issues can be frustrating. Please try restarting your device and going to Settings > General > Software Update. If the problem persists, please DM us with your iOS version so we can investigate further. We're here to help!",
         "battery_drain": "We understand how concerning battery drain can be! Please go to Settings > Battery to check which apps are consuming the most power. Also try Settings > General > Background App Refresh and disable it for unused apps. DM us your iOS version and device model for more specific help!",
-        "app_crash": "Sorry to hear your app is crashing! Please try: 1) Force-close the app, 2) Restart your device, 3) Check for app updates in the App Store. If the issue persists, DM us with the app name and your iOS version. We'd love to help! 🍎",
+        "app_crash": "Sorry to hear your app is crashing! Please try: 1) Force-close the app, 2) Restart your device, 3) Check for app updates in the App Store. If the issue persists, DM us with the app name and your iOS version. We'd love to help!",
         "wifi_connectivity": "We're sorry about the WiFi issues! Please try Settings > General > Transfer or Reset iPhone > Reset > Reset Network Settings. Note: this will reset saved Wi-Fi passwords. DM us if you need more help with your specific setup!",
         "device_performance": "We'd like to help with your device performance. Please try restarting your iPhone and checking Settings > General > iPhone Storage for space issues. A factory reset may also help. DM us with your device model and iOS version for personalized assistance!",
         "account_access": "We understand account access issues can be stressful! Please visit iforgot.apple.com to reset your Apple ID password. For additional help, DM us and we'll guide you through account recovery securely.",
         "account_security": "This requires immediate attention from our security team. Please call Apple Support directly or visit apple.com/support for urgent account security matters. Do not share your credentials with anyone.",
         "billing_payment": "We take billing concerns very seriously. Please review your purchase history in Settings > [Your Name] > Media & Purchases > View Account. For disputed charges, DM us your Apple ID (not your password) so we can assist you.",
         "hardware_issue": "We're sorry to hear about the hardware issue. Depending on your warranty status, this may be covered by Apple. Please visit apple.com/support to check repair options or find an Apple Store near you. DM us if you need more guidance!",
-        "general_question": "Thank you for reaching out to Apple Support! We're happy to help. Please DM us with more details about your question or visit apple.com/support for instant answers to common questions. 🍎"
+        "general_question": "Thank you for reaching out to Apple Support! We're happy to help. Please DM us with more details about your question or visit apple.com/support for instant answers to common questions."
     }
 
     reply = templates.get(intent, templates["general_question"])
